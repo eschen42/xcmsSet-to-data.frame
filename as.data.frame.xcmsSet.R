@@ -23,7 +23,7 @@ pctComplete <- function(
 }
 
 # produce a data frame with attributes from an xcmsSet object that are interesting to me
-as.data.frame.xcmsSet.peaks <- function(filled, output.method = cat, ...) {
+as.data.frame.xcmsSet.peaks <- function(filled, output.method = cat, include.group.id = FALSE, ...) {
   # extract the peak list
   peak.list <- filled@peaks
   # extract index mapping the group number to the sample numbers comprised by that group
@@ -40,36 +40,39 @@ as.data.frame.xcmsSet.peaks <- function(filled, output.method = cat, ...) {
   # note that after retention time correction, ddf[,"rt"] in the extracted df has the corrected retention time
   # get the sample names from the xcmsSet object
   sampnames_df <- as.data.frame(sampnames(filled), stringsAsFactors = FALSE)
+  # get the sample IDs from the peak list
+  sample_ids_df <- peak.list[,"sample"]
   # set the sample names in the data.frame as a new 'sample_name' column
-  ddf[,"sample_name"] <- sampnames_df[ filled$sample, 1 ]
-  # initialize the group_id column
-  ddf[,"group_id"] <- rep( 0, length(filled$mz) )
-  # prepare to iterate over the groups
-  output.method("% complete: ", ...)
-  # fill in ddf$group_id
-  pct <- 0
-  i <- 0
-  groupidx.length <- length(groupidx)
-  junk <-
-    lapply(
-      groupidx, 
-      function(x) {
-        i <<- 1 + i
-        pct <<- pctComplete(progress = i, last.progress = pct, increment = 1, total = groupidx.length)
-        lapply(
-          x, 
-          function(y) {
-            ddf[y,"group_id"] <<- i
-          }
-        )
-        NULL
-      }
-    )
-
+  ddf[,"sample_name"] <- sampnames_df[ sample_ids_df, 1 ]
+  if ( include.group.id ) {
+    # initialize the group_id column
+    ddf[,"group_id"] <- rep( 0, length(ddf$mz) )
+    # prepare to iterate over the groups
+    output.method("% complete: ", ...)
+    # fill in ddf$group_id
+    pct <- 0
+    i <- 0
+    groupidx.length <- length(groupidx)
+    junk <-
+      lapply(
+        groupidx,
+        function(x) {
+          i <<- 1 + i
+          pct <<- pctComplete(progress = i, last.progress = pct, increment = 1, total = groupidx.length, method = output.method, ...)
+          lapply(
+            x,
+            function(y) {
+              ddf[y,"group_id"] <<- i
+            }
+          )
+          NULL
+        }
+      )
+  }
   # rename the intensity column
   colnames(ddf)[colnames(ddf) == "intb"] <- "intensity_area"
   colnames(ddf)[colnames(ddf) == "maxo"] <- "intensity_peak"
   output.method(" done creating data.frame\n", ...)
   ddf
 }
-
+# vim: sw=2 ts=3 et ai :
